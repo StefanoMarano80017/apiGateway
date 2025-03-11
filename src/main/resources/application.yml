@@ -1,0 +1,27 @@
+server:
+  port: 8080
+
+spring:
+  data:
+    mongodb:
+      uri: mongodb://localhost:27017/route_DB # URI per connettersi al database MongoDB
+      database: route_DB 
+      port: 27017                 # default è 27017
+      host: localhost             # Host di MongoDB
+      connection-per-host: 10     # Numero di connessioni per host
+      max-wait-time: 1000         # Tempo massimo di attesa per una connessione
+
+  cloud:
+    gateway:
+      routes: [] # Routes saranno caricate dinamicamente dal DB
+
+# Configurazioni aggiuntive per il logging e altre personalizzazioni
+logging:
+  level:
+    org.springframework.cloud.gateway: DEBUG
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: "*"

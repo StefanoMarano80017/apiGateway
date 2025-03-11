@@ -1,0 +1,22 @@
+{
+  "_id": "1",
+  "name": "user-service",
+  "baseUrl": "http://localhost:8081",
+  "timeout": 5000,
+  "retryAttempts": 3,
+  "rateLimiting": true,
+  "routes": [
+    {
+      "name": "get-users",
+      "path": "/users/**",
+      "method": "GET",
+      "targetService": "http://localhost:8081"
+    },
+    {
+      "name": "create-user",
+      "path": "/users",
+      "method": "POST",
+      "targetService": "http://localhost:8081"
+    }
+  ]
+}

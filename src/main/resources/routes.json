@@ -1,0 +1,44 @@
+[
+  {
+    "name": "t1-service",
+    "path": "/t1/**",
+    "method": "GET",
+    "targetService": "http://localhost:8081"
+  },
+  {
+    "name": "t23-service",
+    "path": "/t23/**",
+    "method": "GET",
+    "targetService": "http://localhost:8082"
+  },
+  {
+    "name": "t4-service",
+    "path": "/t4/**",
+    "method": "GET",
+    "targetService": "http://localhost:8084"
+  },
+  {
+    "name": "t5-service",
+    "path": "/t5/**",
+    "method": "GET",
+    "targetService": "http://localhost:8085"
+  },
+  {
+    "name": "t6-service",
+    "path": "/t6/**",
+    "method": "GET",
+    "targetService": "http://localhost:8086"
+  },
+  {
+    "name": "t7-service",
+    "path": "/t7/**",
+    "method": "GET",
+    "targetService": "http://localhost:8087"
+  },
+  {
+    "name": "t8-service",
+    "path": "/t8/**",
+    "method": "GET",
+    "targetService": "http://localhost:8088"
+  }
+]
