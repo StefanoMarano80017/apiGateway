@@ -14,27 +14,18 @@
  *   See the License for the specific language governing permissions and
  *   limitations under the License.
  */
+
 package com.gateway.apiGateway.config;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-
-import com.gateway.apiGateway.filter.AuthenticationFilter;
-import com.gateway.apiGateway.filter.LoggingFilter;
-import com.gateway.apiGateway.utils.JwtUtil;
+import org.springframework.web.reactive.function.client.WebClient;
 
 @Configuration
-public class FilterConfig {
+public class AppConfig {
 
     @Bean
-    public LoggingFilter loggingFilter() {
-        return new LoggingFilter();
+    public WebClient.Builder webClientBuilder() {
+        return WebClient.builder();
     }
-
-    @Bean
-    public AuthenticationFilter AuthFilter(){
-        JwtUtil jwtUtil = new JwtUtil(null);
-        return new AuthenticationFilter(jwtUtil);
-    }
-
 }
