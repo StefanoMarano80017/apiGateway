@@ -15,18 +15,22 @@
  *   limitations under the License.
  */
 
-package com.gateway.apiGateway.config;
+package com.gateway.apiGateway.route_manager.model;
 
-import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.Configuration;
-import org.springframework.web.reactive.function.client.WebClient;
+import java.util.Map;
 
-@Configuration
-public class AppConfig {
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
 
-    @Bean
-    public WebClient.Builder webClientBuilder() {
-        System.out.println("WebClient.Builder bean is created");
-        return WebClient.builder();
-    }
+@Getter
+@Setter
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
+public class FilterDefinition {
+    private String name;
+    private Map<String, String> args;
 }

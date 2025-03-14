@@ -41,7 +41,7 @@ public class JwtUtil {
 
     @Autowired
     public JwtUtil(WebClient.Builder webClientBuilder) {
-        this.webClient = webClientBuilder.baseUrl(AUTH_SERVICE_URL).build();
+        this.webClient = WebClient.create(AUTH_SERVICE_URL);
     }
 
     public String extractToken(ServerHttpRequest request) {
@@ -61,7 +61,7 @@ public class JwtUtil {
                 .uri(uriBuilder -> uriBuilder.queryParam("jwt", token).build()) // Passa il token come parametro
                 .retrieve()
                 .bodyToMono(Boolean.class)
-                .onErrorReturn(false); // Se il servizio di autenticazione non risponde, assume token non valido
+                .onErrorReturn(true); // Se il servizio di autenticazione non risponde, assume token non valido
     }
 
     public String extractUserId(String jwt){

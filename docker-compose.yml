@@ -1,0 +1,27 @@
+services:
+  route_db:
+    image: mongo:6.0
+    container_name: route_db
+    ports:
+      - "28028:27017"  # Se utilizzi una porta personalizzata"
+    networks:
+      - global-network
+    volumes:
+      - route_db_data:/data/db
+
+  api-gateway:
+    build: .
+    container_name: api-gateway
+    ports:
+      - "8090:8090"
+    depends_on:
+      - route_db
+    networks:
+      - global-network
+
+networks:
+  global-network:
+    external: true  # Usa un network Docker già esistente
+
+volumes:
+  route_db_data:

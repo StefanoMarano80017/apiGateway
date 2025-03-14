@@ -15,18 +15,16 @@
  *   limitations under the License.
  */
 
-package com.gateway.apiGateway.config;
+package com.gateway.apiGateway.route_manager.repository;
 
-import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.Configuration;
-import org.springframework.web.reactive.function.client.WebClient;
+import java.util.List;
 
-@Configuration
-public class AppConfig {
+import org.springframework.data.repository.reactive.ReactiveCrudRepository;
+import org.springframework.stereotype.Repository;
 
-    @Bean
-    public WebClient.Builder webClientBuilder() {
-        System.out.println("WebClient.Builder bean is created");
-        return WebClient.builder();
-    }
+import com.gateway.apiGateway.route_manager.model.RouteDefinitionEntity;
+
+@Repository 
+public interface RouteDefinitionRepository extends ReactiveCrudRepository<RouteDefinitionEntity, String> {
+    List<RouteDefinitionEntity> findByActiveTrue();
 }

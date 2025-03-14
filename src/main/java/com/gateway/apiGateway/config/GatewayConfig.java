@@ -16,40 +16,32 @@
  */
 package com.gateway.apiGateway.config;
 
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cloud.gateway.route.RouteLocator;
 import org.springframework.cloud.gateway.route.builder.RouteLocatorBuilder;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
-import com.gateway.apiGateway.route_manager.service.RouteConfigService;
+import com.gateway.apiGateway.route_manager.service.CustomRouteLocator;
+import com.gateway.apiGateway.route_manager.service.RouteService;
 
 @Configuration
 public class GatewayConfig {
 
-    private final RouteConfigService routeService;
-
-    @Autowired
-    public GatewayConfig(RouteConfigService routeService) {
-        this.routeService = routeService;
+    @Bean
+    public RouteLocator TestRoutes(RouteLocatorBuilder builder) {
+        return builder.routes()
+                .route(p -> p
+                .path("/get")
+                .filters(f -> f.addRequestHeader("Hello", "World"))
+                .uri("http://httpbin.org:80")
+                ).build();
     }
 
+    /*
+     * route caricate da DB
+     */
     @Bean
-    public RouteLocator customRouteLocator(RouteLocatorBuilder builder) {
-        RouteLocatorBuilder.Builder routeBuilder = builder.routes();
-        /*
-        *   Per ogni route salvata nel DB
-        */
-        routeService.loadRoutes().forEach(route -> {
-            // Aggiungi ogni rotta dinamicamente
-            routeBuilder.route(r -> r
-                    .path(route.getPath()) // Percorso della rotta (ad esempio "/users/{id}")
-                    .and()
-                    .method(route.getMethod()) // Metodo HTTP (GET, POST, ecc.)
-                    .uri(route.getTargetService()) // Servizio target (ad esempio "http://localhost:8080")
-            );
-        });
-
-        return routeBuilder.build();
+    public RouteLocator DBrouteLocator(RouteService routeService, RouteLocatorBuilder routeLocationBuilder) {
+        return new CustomRouteLocator(routeLocationBuilder, routeService);
     }
 }

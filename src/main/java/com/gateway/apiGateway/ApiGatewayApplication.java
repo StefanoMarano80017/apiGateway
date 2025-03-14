@@ -21,26 +21,31 @@ import org.springframework.boot.CommandLineRunner;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 
+import com.gateway.apiGateway.route_manager.service.CustomRouteLocator;
 import com.gateway.apiGateway.route_manager.service.RouteLoaderService;
 
-@SpringBootApplication
-public class ApiGatewayApplication implements CommandLineRunner{
+@SpringBootApplication(scanBasePackages = "com.gateway.apiGateway")
+public class ApiGatewayApplication implements CommandLineRunner {
 
-    private final RouteLoaderService routeLoaderService;
+    private final RouteLoaderService routeLoader;
+    private final CustomRouteLocator customRouteLocator;
 
-	@Autowired
-    public ApiGatewayApplication(RouteLoaderService routeLoaderService) {
-        this.routeLoaderService = routeLoaderService;
+    @Autowired
+    public ApiGatewayApplication(RouteLoaderService routeLoader, CustomRouteLocator customRouteLocator){
+        this.routeLoader = routeLoader;
+        this.customRouteLocator  = customRouteLocator;
     }
 
-	public static void main(String[] args) {
-		SpringApplication.run(ApiGatewayApplication.class, args);
-	}
+    public static void main(String[] args) {
+        SpringApplication.run(ApiGatewayApplication.class, args);
+    }
 
-	@Override
+    @Override
     public void run(String... args) throws Exception {
         // Inserisci le rotte all'avvio
-        routeLoaderService.loadRoutes();
+        System.out.println("Carico route da json");
+        routeLoader.loadRoutes();
+        routeLoader.loadServices();
+        customRouteLocator.getRoutes();
     }
-
 }

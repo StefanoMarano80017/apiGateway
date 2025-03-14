@@ -17,10 +17,12 @@
 
 package com.gateway.apiGateway.route_manager.repository;
 
-import org.springframework.data.mongodb.repository.MongoRepository;
+import org.springframework.data.repository.reactive.ReactiveCrudRepository;
+import org.springframework.stereotype.Repository;
 
-import com.gateway.apiGateway.route_manager.model.RouteConfig;
+import com.gateway.apiGateway.route_manager.model.ServiceDefinitionEntity;
 
-public interface RouteConfigRepository extends MongoRepository<RouteConfig, String> {
-    RouteConfig findByPathAndMethod(String path, String method);
+@Repository
+public interface ServiceDefinitionRepository extends ReactiveCrudRepository<ServiceDefinitionEntity, String> {
+
 }

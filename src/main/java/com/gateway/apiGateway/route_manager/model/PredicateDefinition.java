@@ -15,10 +15,22 @@
  *   limitations under the License.
  */
 
-package com.gateway.apiGateway.route_manager.repository;
+package com.gateway.apiGateway.route_manager.model;
 
-import org.springframework.data.mongodb.repository.MongoRepository;
-import com.gateway.apiGateway.route_manager.model.ServiceConfig;
+import java.util.Map;
 
-public interface ServiceConfigRepository extends MongoRepository<ServiceConfig, String> {
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
+
+@Getter
+@Setter
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
+public class PredicateDefinition {
+    private String name;
+    private Map<String, String> args;
 }

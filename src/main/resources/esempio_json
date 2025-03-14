@@ -20,3 +20,21 @@
     }
   ]
 }
+
+
+{
+  "id": "user-service",
+  "uri": "http://localhost:8081",
+  "predicates": [
+    {
+      "name": "Path",
+      "args": { "pattern": "/CompileApi/users/**" }
+    }
+  ],
+  "filters": [
+    {
+      "name": "StripPrefix",
+      "args": { "parts": "1" }
+    }
+  ]
+}

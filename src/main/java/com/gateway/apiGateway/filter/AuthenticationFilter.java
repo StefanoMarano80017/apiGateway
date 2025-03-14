@@ -18,6 +18,7 @@ package com.gateway.apiGateway.filter;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cloud.gateway.filter.GatewayFilterChain;
 import org.springframework.cloud.gateway.filter.GlobalFilter;
 import org.springframework.core.Ordered;
@@ -34,8 +35,9 @@ import reactor.core.publisher.Mono;
 public class AuthenticationFilter implements GlobalFilter, Ordered {
 
     private final JwtUtil JwtUtil;
-    private static final Logger logger = LoggerFactory.getLogger(AuthenticationFilter.class); 
+    private static final Logger logger = LoggerFactory.getLogger(AuthenticationFilter.class);
 
+    @Autowired
     public AuthenticationFilter(JwtUtil JwtUtil) {
         this.JwtUtil = JwtUtil;
     }
@@ -46,10 +48,16 @@ public class AuthenticationFilter implements GlobalFilter, Ordered {
         /*
          * Estraggo il token dal header della richiesta 
          */
-        String token = JwtUtil.extractToken(request);
-        if (token == null) {
-            logger.warn("Token mancante nella richiesta per l'utente: {}", request.getRemoteAddress()); 
-            return unauthorized(exchange);
+        String token;
+        try{
+            token = JwtUtil.extractToken(request);
+            if (token == null) {
+                logger.warn("Token mancante nella richiesta per l'utente: {}", request.getRemoteAddress());
+                return unauthorized(exchange);
+            }
+        }catch(Exception e){
+            logger.error("Errore nell'estrazione del token per l'utente {}", request.getRemoteAddress(), e);
+            return unauthorized(exchange); 
         }
 
         return JwtUtil.validateToken(token).flatMap(isValid -> {
@@ -59,9 +67,15 @@ public class AuthenticationFilter implements GlobalFilter, Ordered {
             }
             // Estrai le informazioni dal token e propagale ai microservizi
             String userId = JwtUtil.extractUserId(token);
-            logger.info("Token valido per l'utente: {} - UserId: {}", request.getRemoteAddress(), userId); 
-            ServerHttpRequest modifiedRequest = exchange.getRequest().mutate().header("X-Authenticated-UserId", userId).build();
+            logger.info("Token valido per l'utente: {} - UserId: {}", request.getRemoteAddress(), userId);
+
+            ServerHttpRequest modifiedRequest = exchange.getRequest().mutate()
+                    .header("X-Authenticated-UserId", userId)
+                    .build();
             return chain.filter(exchange.mutate().request(modifiedRequest).build());
+        }).onErrorResume(e -> {
+            logger.error("Errore nella validazione del token: {}", e.getMessage(), e);
+            return unauthorized(exchange);
         });
     }
 
@@ -72,6 +86,6 @@ public class AuthenticationFilter implements GlobalFilter, Ordered {
 
     @Override
     public int getOrder() {
-        return -1; // Deve essere il primo filtro ad essere eseguito
+        return -1;  
     }
 }

@@ -4,16 +4,34 @@ server:
 spring:
   data:
     mongodb:
-      uri: mongodb://localhost:27017/route_DB # URI per connettersi al database MongoDB
-      database: route_DB 
-      port: 27017                 # default è 27017
-      host: localhost             # Host di MongoDB
-      connection-per-host: 10     # Numero di connessioni per host
-      max-wait-time: 1000         # Tempo massimo di attesa per una connessione
+      database: DB 
+      port: 27017       # default è 27017
+      host: route_db    # Host di MongoDB
+  redis:
+    host: localhost
+    port: 6379
+  cache:
+    type: redis
 
   cloud:
     gateway:
-      routes: [] # Routes saranno caricate dinamicamente dal DB
+      routes: 
+        - id: hello_route
+          uri: http://httpbin.org:80
+          predicates:
+            - Path=/prova_gateway
+
+#configurazionel del circuit breaker 
+resilience4j:
+  circuitbreaker:
+    instances:
+      globalCircuitBreaker:
+        failureRateThreshold: 50    # Quando la percentuale di errori è > 50%
+        slowCallRateThreshold: 100  # Quando il tasso di chiamate lente è > 100%
+        waitDurationInOpenState: 5s # Tempo in stato "Open" prima di testare nuovamente
+        slidingWindowSize: 100      # Numero di chiamate per calcolare il fallimento
+        minimumNumberOfCalls: 10    # Numero minimo di chiamate per attivare il Circuit Breaker
+
 
 # Configurazioni aggiuntive per il logging e altre personalizzazioni
 logging:
@@ -24,4 +42,14 @@ management:
   endpoints:
     web:
       exposure:
-        include: "*"
+        include: "*"   # Espone tutti gli endpoint actuator
+  endpoint:
+    health:
+      show-details: always  # Mostra i dettagli dello stato di salute dell'app
+    metrics:
+      enabled: true
+    gateway:
+      enabled: true  
+  metrics:
+    tags:
+      application: apiGateway
