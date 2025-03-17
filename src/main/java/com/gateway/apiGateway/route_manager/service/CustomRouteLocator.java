@@ -43,11 +43,9 @@ import reactor.core.publisher.Flux;
 @RequiredArgsConstructor
 @Service
 public class CustomRouteLocator implements RouteLocator {
-
     // Builder fornito da Spring Cloud Gateway per costruire le rotte in modo programmatico.
     private final RouteLocatorBuilder routeLocatorBuilder;
-
-    // Servizio che fornisce le configurazioni delle rotte (presumibilmente da database o altra fonte).
+    // Servizio che fornisce le configurazioni delle rotte.
     private final RouteService routeService;
 
     private static final Logger log = LoggerFactory.getLogger(CustomRouteLocator.class);
@@ -66,6 +64,7 @@ public class CustomRouteLocator implements RouteLocator {
         // Recupera tutte le rotte dal servizio e le trasforma in definizioni di Spring Gateway
         return routeService.getAll().map(apiRoute -> {
             try{
+                log.info("Cairco la route {}", apiRoute.getRouteIdentifier());
                 return routesBuilder.route(
                     String.valueOf(apiRoute.getRouteIdentifier()),   // Identificativo della rotta
                     predicateSpec -> setPredicateSpec(apiRoute, predicateSpec) // Configurazione della rotta

@@ -17,16 +17,21 @@
 
 package com.gateway.apiGateway.route_manager.service;
 
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+
 import com.gateway.apiGateway.route_manager.model.RouteDefinitionEntity;
 import com.gateway.apiGateway.route_manager.repository.RouteDefinitionRepository;
 
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
+@Service
 public class RouteService {
 
     private final RouteDefinitionRepository routeRepository;
 
+    @Autowired
     public RouteService(RouteDefinitionRepository routeRepository) {
         this.routeRepository = routeRepository;
     }
