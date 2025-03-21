@@ -15,14 +15,20 @@
  *   limitations under the License.
  */
 
-package com.gateway.apiGateway.route_manager.repository;
+package com.gateway.apiGateway.Controller;
 
-import org.springframework.data.repository.reactive.ReactiveCrudRepository;
-import org.springframework.stereotype.Repository;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
 
-import com.gateway.apiGateway.route_manager.model.ServiceDefinitionEntity;
+@RestController
+public class FallbackController {
 
-@Repository
-public interface ServiceDefinitionRepository extends ReactiveCrudRepository<ServiceDefinitionEntity, String> {
+    @RequestMapping("/fallback")
+    public ResponseEntity<String> fallback() {
+        return new ResponseEntity<>("Service is temporarily unavailable. Please try again later.", 
+                                    HttpStatus.SERVICE_UNAVAILABLE);
+    }
 
 }

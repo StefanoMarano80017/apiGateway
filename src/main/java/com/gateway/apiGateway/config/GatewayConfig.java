@@ -16,32 +16,9 @@
  */
 package com.gateway.apiGateway.config;
 
-import org.springframework.cloud.gateway.route.RouteLocator;
-import org.springframework.cloud.gateway.route.builder.RouteLocatorBuilder;
-import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-
-import com.gateway.apiGateway.route_manager.service.CustomRouteLocator;
-import com.gateway.apiGateway.route_manager.service.RouteService;
 
 @Configuration
 public class GatewayConfig {
 
-    @Bean
-    public RouteLocator TestRoutes(RouteLocatorBuilder builder) {
-        return builder.routes()
-                .route(p -> p
-                .path("/get")
-                .filters(f -> f.addRequestHeader("Hello", "World"))
-                .uri("http://httpbin.org:80")
-                ).build();
-    }
-
-    /*
-     * route caricate da DB
-     */
-    @Bean
-    public RouteLocator DBrouteLocator(RouteService routeService, RouteLocatorBuilder routeLocationBuilder) {
-        return new CustomRouteLocator(routeLocationBuilder, routeService);
-    }
 }

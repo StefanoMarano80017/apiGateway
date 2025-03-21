@@ -16,36 +16,17 @@
  */
 package com.gateway.apiGateway;
 
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.CommandLineRunner;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 
-import com.gateway.apiGateway.route_manager.service.CustomRouteLocator;
-import com.gateway.apiGateway.route_manager.service.RouteLoaderService;
+import reactor.core.publisher.Hooks;
+
 
 @SpringBootApplication(scanBasePackages = "com.gateway.apiGateway")
-public class ApiGatewayApplication implements CommandLineRunner {
-
-    private final RouteLoaderService routeLoader;
-    private final CustomRouteLocator customRouteLocator;
-
-    @Autowired
-    public ApiGatewayApplication(RouteLoaderService routeLoader, CustomRouteLocator customRouteLocator){
-        this.routeLoader = routeLoader;
-        this.customRouteLocator  = customRouteLocator;
-    }
-
+public class ApiGatewayApplication {
+    
     public static void main(String[] args) {
         SpringApplication.run(ApiGatewayApplication.class, args);
     }
 
-    @Override
-    public void run(String... args) throws Exception {
-        // Inserisci le rotte all'avvio
-        System.out.println("Carico route da json");
-        routeLoader.loadRoutes();
-        routeLoader.loadServices();
-        customRouteLocator.getRoutes();
-    }
 }

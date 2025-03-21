@@ -2,54 +2,57 @@ server:
   port: 8080
 
 spring:
-  data:
-    mongodb:
-      database: DB 
-      port: 27017       # default è 27017
-      host: route_db    # Host di MongoDB
-  redis:
-    host: localhost
-    port: 6379
+  redis: 
+    host: redis_rate_limiter
+    port: 6380
+    timeout: 20000  
+  
   cache:
-    type: redis
+    type: redis 
 
   cloud:
     gateway:
-      routes: 
-        - id: hello_route
-          uri: http://httpbin.org:80
+      routes:
+        - id: fallback-route
+          uri: http://localhost:8080/fallback # Dove si gestisce il fallback
           predicates:
-            - Path=/prova_gateway
-
-#configurazionel del circuit breaker 
-resilience4j:
-  circuitbreaker:
-    instances:
-      globalCircuitBreaker:
-        failureRateThreshold: 50    # Quando la percentuale di errori è > 50%
-        slowCallRateThreshold: 100  # Quando il tasso di chiamate lente è > 100%
-        waitDurationInOpenState: 5s # Tempo in stato "Open" prima di testare nuovamente
-        slidingWindowSize: 100      # Numero di chiamate per calcolare il fallimento
-        minimumNumberOfCalls: 10    # Numero minimo di chiamate per attivare il Circuit Breaker
-
+            - Path=/fallback
+        - id: sample-route
+          uri: http://httpbin.dev:80
+          predicates:
+            - Path=/test/**
+          filters:
+            - RewritePath=/test/(?<segment>.*), /${segment}
+            - name: CircuitBreaker
+              args:
+                name: exampleCircuitBreaker
+            - name: RequestRateLimiter
+              args:
+                redis-rate-limiter.replenishRate: 1     # ottengo un token al secondo 
+                redis-rate-limiter.burstCapacity: 1     # burst massima di 1 richiesta
+                redis-rate-limiter.requestedTokens: 1  # 10 token per una richiesta -> 1 richiesta ogni 10 sec
+                key-resolver: "#{@ipKeyResolver}"  # Resolver basato sull'header X-Forwarded-For
+            - name: RedisCache
+              args:
+                ttl: 30  # Imposta il TTL della cache a 30 secondi
 
 # Configurazioni aggiuntive per il logging e altre personalizzazioni
 logging:
   level:
-    org.springframework.cloud.gateway: DEBUG
+    org.springframework.cloud.gateway: INFO
 
 management:
   endpoints:
     web:
       exposure:
-        include: "*"   # Espone tutti gli endpoint actuator
+        include: "*"
   endpoint:
-    health:
-      show-details: always  # Mostra i dettagli dello stato di salute dell'app
-    metrics:
-      enabled: true
     gateway:
-      enabled: true  
+      enabled: true
+    env:
+      enabled: true
+      show-values: ALWAYS
+
   metrics:
     tags:
       application: apiGateway

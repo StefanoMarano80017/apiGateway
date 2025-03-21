@@ -33,10 +33,12 @@ public class LoggingFilter implements GlobalFilter, Ordered {
     public Mono<Void> filter(ServerWebExchange exchange, GatewayFilterChain chain) {
         String method = exchange.getRequest().getMethod().toString();
         String path = exchange.getRequest().getPath().toString();
+        String transformedUri = exchange.getRequest().mutate().build().getURI().toString();
+
         /*
          * Log della richiesta 
          */
-        log.info("Request Method: {}, Path: {}", method, path);
+        log.info("Request Method: {}, Path: {}, URI{}", method, path, transformedUri);
         /*
          * Log della risposta dopo tutti i filtri 
          * Ottengo questo comportamento con doOnTerminate()
@@ -51,6 +53,6 @@ public class LoggingFilter implements GlobalFilter, Ordered {
 
     @Override
     public int getOrder() {
-        return 2; 
+        return 100; 
     }
 }

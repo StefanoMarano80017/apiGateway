@@ -1,23 +1,24 @@
 services:
-  route_db:
-    image: mongo:6.0
-    container_name: route_db
-    ports:
-      - "28028:27017"  # Se utilizzi una porta personalizzata"
-    networks:
-      - global-network
-    volumes:
-      - route_db_data:/data/db
-
   api-gateway:
     build: .
     container_name: api-gateway
-    ports:
-      - "8090:8090"
     depends_on:
-      - route_db
+      - redis_rate_limiter
+    environment:
+      REDIS_HOST: redis_rate_limiter
+      REDIS_PORT: 6379
+    ports:
+      - "8080:8080"
     networks:
       - global-network
+  
+  redis_rate_limiter:
+    image: redis:latest
+    container_name: redis_rate_limiter
+    ports:
+      - "6380:6379"  
+    networks:
+      - global-network  
 
 networks:
   global-network:
