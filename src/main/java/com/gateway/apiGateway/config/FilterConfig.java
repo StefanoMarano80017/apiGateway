@@ -17,29 +17,23 @@
 package com.gateway.apiGateway.config;
 
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.cloud.gateway.filter.factory.GatewayFilterFactory;
-import org.springframework.cloud.gateway.filter.factory.rewrite.ModifyResponseBodyGatewayFilterFactory;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.data.redis.core.ReactiveStringRedisTemplate;
 
+import com.gateway.apiGateway.Factory.RedisCacheGatewayFilterFactory;
 import com.gateway.apiGateway.filter.AuthenticationFilter;
 import com.gateway.apiGateway.filter.LoggingFilter;
-import com.gateway.apiGateway.filter.RedisCacheGatewayFilterFactory;
 import com.gateway.apiGateway.utils.JwtUtil;
 
 @Configuration
 public class FilterConfig {
 
     private final ReactiveStringRedisTemplate redisTemplate;
-    private final ModifyResponseBodyGatewayFilterFactory modifyResponseBodyGatewayFilterFactory;
-
 
     @Autowired
-    public FilterConfig(ReactiveStringRedisTemplate redisTemplate, 
-                        ModifyResponseBodyGatewayFilterFactory modifyResponseBodyGatewayFilterFactory){
+    public FilterConfig(ReactiveStringRedisTemplate redisTemplate) {
         this.redisTemplate = redisTemplate;
-        this.modifyResponseBodyGatewayFilterFactory = modifyResponseBodyGatewayFilterFactory;
     }
 
     @Bean
@@ -48,14 +42,19 @@ public class FilterConfig {
     }
 
     @Bean
-    public AuthenticationFilter AuthFilter(){
+    public AuthenticationFilter AuthFilter() {
         JwtUtil jwtUtil = new JwtUtil(null);
         return new AuthenticationFilter(jwtUtil);
     }
 
-    @Bean 
-    public GatewayFilterFactory<RedisCacheGatewayFilterFactory.Config> RedisCache(){
-        return new RedisCacheGatewayFilterFactory(redisTemplate, modifyResponseBodyGatewayFilterFactory);
+    @Bean
+    public RedisCacheGatewayFilterFactory redisCacheGatewayFilterFactory() {
+        return new RedisCacheGatewayFilterFactory(redisTemplate);
+    }
+
+    @Bean
+    public RedisCacheGatewayFilterFactory.Config redisCacheConfig() {
+        return new RedisCacheGatewayFilterFactory.Config();
     }
 
 }

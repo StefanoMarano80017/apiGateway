@@ -19,8 +19,6 @@ package com.gateway.apiGateway;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 
-import reactor.core.publisher.Hooks;
-
 
 @SpringBootApplication(scanBasePackages = "com.gateway.apiGateway")
 public class ApiGatewayApplication {

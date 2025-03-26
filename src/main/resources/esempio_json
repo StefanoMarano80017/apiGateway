@@ -1,40 +1,9 @@
-{
-  "_id": "1",
-  "name": "user-service",
-  "baseUrl": "http://localhost:8081",
-  "timeout": 5000,
-  "retryAttempts": 3,
-  "rateLimiting": true,
-  "routes": [
-    {
-      "name": "get-users",
-      "path": "/users/**",
-      "method": "GET",
-      "targetService": "http://localhost:8081"
-    },
-    {
-      "name": "create-user",
-      "path": "/users",
-      "method": "POST",
-      "targetService": "http://localhost:8081"
-    }
-  ]
-}
-
-
-{
-  "id": "user-service",
-  "uri": "http://localhost:8081",
-  "predicates": [
-    {
-      "name": "Path",
-      "args": { "pattern": "/CompileApi/users/**" }
-    }
-  ],
-  "filters": [
-    {
-      "name": "StripPrefix",
-      "args": { "parts": "1" }
-    }
-  ]
-}
+- name: CircuitBreaker
+args:
+  name: exampleCircuitBreaker
+- name: RequestRateLimiter
+args:
+  redis-rate-limiter.replenishRate: 1     # ottengo un token al secondo 
+  redis-rate-limiter.burstCapacity: 1     # burst massima di 1 richiesta
+  redis-rate-limiter.requestedTokens: 1  # 10 token per una richiesta -> 1 richiesta ogni 10 sec
+  key-resolver: "#{@ipKeyResolver}"  # Resolver basato sull'header X-Forwarded-For
