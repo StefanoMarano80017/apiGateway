@@ -23,29 +23,30 @@ import java.util.stream.Stream;
 import org.springframework.cloud.gateway.filter.GatewayFilter;
 import org.springframework.cloud.gateway.filter.factory.AbstractGatewayFilterFactory;
 import org.springframework.data.redis.core.ReactiveStringRedisTemplate;
-import org.springframework.stereotype.Component;
 
-import com.gateway.apiGateway.filter.RedisCache;
+import com.gateway.apiGateway.filter.redisCacheFilter.RedisCacheFilter;
 
-@Component
-public class RedisCacheGatewayFilterFactory extends AbstractGatewayFilterFactory<RedisCacheGatewayFilterFactory.Config> {
+public class RedisCacheFilterGatewayFilterFactory extends AbstractGatewayFilterFactory<RedisCacheFilterGatewayFilterFactory.Config> {
 
     private final ReactiveStringRedisTemplate redisTemplate;
 
-    public RedisCacheGatewayFilterFactory(ReactiveStringRedisTemplate redisTemplate) {
+    public RedisCacheFilterGatewayFilterFactory(ReactiveStringRedisTemplate redisTemplate) {
         super(Config.class);
         this.redisTemplate = redisTemplate;
     }
 
     @Override
     public GatewayFilter apply(Config config) {
-        return new RedisCache(redisTemplate, config);
+        return new RedisCacheFilter(redisTemplate, config);
     }
 
     public static class Config {
+        /*
+         * Valori di default 
+         */
         private Long ttl = 10L;
-        private String cachePrefix = "cache:";
-        private Set<String> methods = Set.of("GET"); // Default solo GET
+        private String cachePrefix = "DataCache:";
+        private Set<String> methods = Set.of("GET"); // solo GET
 
         public Long getTtl() {
             return ttl;
@@ -77,5 +78,6 @@ public class RedisCacheGatewayFilterFactory extends AbstractGatewayFilterFactory
         public boolean isCacheable(String method) {
             return methods.contains(method.toUpperCase());
         }
+
     }
 }

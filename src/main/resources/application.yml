@@ -12,34 +12,72 @@ spring:
 
   cloud:
     gateway:
+      httpclient:
+        connect-timeout: 5000000  # Timeout di connessione (5 secondi)
+        response-timeout: 150s   # Timeout di risposta (30 secondi)
       routes:
         - id: fallback-route
           uri: http://localhost:8080/fallback # Dove si gestisce il fallback
           predicates:
             - Path=/fallback
-        - id: sample-route
-          uri: http://httpbin.dev:80
+        - id: test-route
+          uri: http://httpbin.org
           predicates:
             - Path=/test/**
           filters:
             - RewritePath=/test/(?<segment>.*), /${segment}
-            - name: CircuitBreaker
+            - name: RedisCacheFilter
               args:
-                name: exampleCircuitBreaker
-            - name: RequestRateLimiter
+                ttl: 60
+                cachePrefix: "test_cache:"
+                methods: "GET, POST, PUT"
+            - name: AuthenticationFilter
               args:
-                redis-rate-limiter.replenishRate: 1     # ottengo un token al secondo 
-                redis-rate-limiter.burstCapacity: 1     # burst massima di 1 richiesta
-                redis-rate-limiter.requestedTokens: 1  # 10 token per una richiesta -> 1 richiesta ogni 10 sec
-                key-resolver: "#{@ipKeyResolver}"  # Resolver basato sull'header X-Forwarded-For
-            - name: RedisCache
+                cachePrefix: "Auth_Cache:"
+                authServiceUrl: "http://t23-controller:8082/validateToken"
+                BUFFER_TIME_SECONDS: 600  
+                CACHE_TTL_THRESHOLD: 60
+        - id: gamerepo-route
+          uri: http://t4-controller:8084
+          predicates:
+            - Path=/gamerepo/**
+          filters:
+            - RewritePath=/gamerepo/(?<segment>.*), /${segment}
+            - name: RedisCacheFilter
               args:
-                ttl: 30  # Imposta il TTL della cache a 30 secondi
+                ttl: 60
+                cachePrefix: "gamerepo_cache:"
+                methods: "GET"
+        - id: T7-route
+          uri: http://t7-controller:8087
+          predicates:
+            - Path=/compile/randoop/**
+          filters:
+            - RewritePath=/compile/randoop/(?<segment>.*), /${segment}
+        - id: T8-route
+          uri: http://t8-controller:8088
+          predicates:
+            - Path=/compile/evosuite/**
+          filters:
+            - RewritePath=/compile/evosuite/(?<segment>.*), /${segment}
+        - id: T1-route
+          uri: http://t1-controller:8081
+          predicates:
+            - Path=/adminService/**
+          filters:
+            - RewritePath=/adminService/(?<segment>.*), /${segment}
+        - id: T23-route
+          uri: http://t23-controller:8082
+          predicates:
+            - Path=/userService/**
+          filters:
+            - RewritePath=/userService/(?<segment>.*), /${segment}
 
 # Configurazioni aggiuntive per il logging e altre personalizzazioni
 logging:
   level:
     org.springframework.cloud.gateway: INFO
+    reactor.netty.http.server: INFO
 
 management:
   endpoints:
