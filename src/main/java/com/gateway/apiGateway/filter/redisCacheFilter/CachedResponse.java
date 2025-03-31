@@ -21,25 +21,17 @@ import java.util.List;
 import java.util.Map;
 
 public class CachedResponse {
-    private String contentType;
     private String body;
     private Map<String, List<String>> headers;
 
     public CachedResponse() {}
 
-    public CachedResponse(String contentType, String body, Map<String, List<String>> headers) {
-        this.contentType = contentType;
+    public CachedResponse(String body, Map<String, List<String>> headers) {
         this.body = body;
         this.headers = headers;
     }
 
     // Getters & setters
-    public String getContentType() {
-        return contentType;
-    }
-    public void setContentType(String contentType) {
-        this.contentType = contentType;
-    }
     public String getBody() {
         return body;
     }

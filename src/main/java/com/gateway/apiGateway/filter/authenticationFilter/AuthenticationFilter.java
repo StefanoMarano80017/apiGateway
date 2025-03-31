@@ -14,13 +14,13 @@
  *   See the License for the specific language governing permissions and
  *   limitations under the License.
  */
-
 package com.gateway.apiGateway.filter.authenticationFilter;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.cloud.gateway.filter.GatewayFilter;
 import org.springframework.cloud.gateway.filter.GatewayFilterChain;
+import org.springframework.cloud.gateway.filter.NettyWriteResponseFilter;
 import org.springframework.core.Ordered;
 import org.springframework.data.redis.core.ReactiveStringRedisTemplate;
 import org.springframework.http.HttpStatus;
@@ -41,20 +41,20 @@ public class AuthenticationFilter implements GatewayFilter, Ordered {
 
     /*
      * Ordine d'esecuzione del filtro, 
-    */
+     */
     @Override
     public int getOrder() {
-        return - 1;
+        return NettyWriteResponseFilter.WRITE_RESPONSE_FILTER_ORDER - 2;
     }
 
-    public AuthenticationFilter(ReactiveStringRedisTemplate redisTemplate, 
-                                Config config, WebClient.Builder webClientBuilder) {
-        this.authTokenService = new AuthTokenService(webClientBuilder, 
-                                                    config.getAuthServiceUrl(), 
-                                                    config.getCachePrefix(), 
-                                                    config.getBUFFER_TIME_SECONDS(),
-                                                    config.getCACHE_TTL_THRESHOLD(),
-                                                    redisTemplate);
+    public AuthenticationFilter(ReactiveStringRedisTemplate redisTemplate,
+            Config config, WebClient.Builder webClientBuilder) {
+        this.authTokenService = new AuthTokenService(webClientBuilder,
+                config.getAuthServiceUrl(),
+                config.getCachePrefix(),
+                config.getBUFFER_TIME_SECONDS(),
+                config.getCACHE_TTL_THRESHOLD(),
+                redisTemplate);
     }
 
     @Override
@@ -79,10 +79,17 @@ public class AuthenticationFilter implements GatewayFilter, Ordered {
             }
             // Estrai informazioni dal token e aggiungile all'header
             String userId = authTokenService.extractUserId(token);
-            ServerHttpRequest modifiedRequest = exchange.getRequest().mutate()
-                                                .header("X-Authenticated-UserId", userId)
+            logger.info("Avvio autenticazione per utente {}", userId);
+
+            // Creare un nuovo exchange con la richiesta mutata
+            ServerWebExchange mutatedExchange = exchange.mutate()
+                                                .request(
+                                                    request.mutate()
+                                                        .header("X-Authenticated-UserId", userId)
+                                                        .build()
+                                                )
                                                 .build();
-            return chain.filter(exchange.mutate().request(modifiedRequest).build());
+            return chain.filter(mutatedExchange);
         }).onErrorResume(e -> {
             logger.error("Errore nella validazione del token: {}", e.getMessage(), e);
             return unauthorized(exchange);

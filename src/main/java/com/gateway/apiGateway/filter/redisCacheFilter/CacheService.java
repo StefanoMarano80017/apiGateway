@@ -37,7 +37,7 @@ public class CacheService {
     public Mono<Boolean> save(String cacheKey, CachedResponse cachedResponse, Long ttl) {
         try {
             String jsonToCache = objectMapper.writeValueAsString(cachedResponse);
-            return redisTemplate.opsForValue().set(cacheKey, jsonToCache, Duration.ofSeconds(ttl));
+            return redisTemplate.opsForValue().setIfAbsent(cacheKey, jsonToCache, Duration.ofSeconds(ttl));
         } catch (JsonProcessingException e) {
             return Mono.error(e);
         }

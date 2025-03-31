@@ -22,8 +22,10 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.data.redis.core.ReactiveStringRedisTemplate;
 import org.springframework.web.reactive.function.client.WebClient;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.gateway.apiGateway.Factory.AuthenticationFilterGatewayFilterFactory;
 import com.gateway.apiGateway.Factory.RedisCacheFilterGatewayFilterFactory;
+import com.gateway.apiGateway.filter.AggregationGatewayFilterFactory;
 import com.gateway.apiGateway.filter.LoggingFilter;
 
 @Configuration
@@ -31,11 +33,16 @@ public class FilterConfig {
 
     private final ReactiveStringRedisTemplate redisTemplate;
     private final WebClient.Builder webClientBuilder;
+    private final ObjectMapper objectMapper;
+
 
     @Autowired
-    public FilterConfig(ReactiveStringRedisTemplate redisTemplate, WebClient.Builder webClientBuilder) {
+    public FilterConfig(ReactiveStringRedisTemplate redisTemplate, 
+                        WebClient.Builder webClientBuilder, 
+                        ObjectMapper objectMapper) {
         this.redisTemplate = redisTemplate;
         this.webClientBuilder = webClientBuilder;
+        this.objectMapper = objectMapper;
     }
 
     @Bean
@@ -61,6 +68,16 @@ public class FilterConfig {
     @Bean
     public RedisCacheFilterGatewayFilterFactory.Config redisCacheConfig() {
         return new RedisCacheFilterGatewayFilterFactory.Config();
+    }
+
+    @Bean
+    public AggregationGatewayFilterFactory aggregationGatewayFilterFactory(){
+        return new AggregationGatewayFilterFactory(webClientBuilder, objectMapper);
+    }
+
+    @Bean
+    public AggregationGatewayFilterFactory.Config aggregationConfig(){
+        return new AggregationGatewayFilterFactory.Config();
     }
 
 }

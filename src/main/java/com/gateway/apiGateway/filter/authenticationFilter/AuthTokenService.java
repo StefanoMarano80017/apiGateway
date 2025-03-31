@@ -24,6 +24,8 @@ import java.util.Base64;
 import java.util.Map;
 import java.util.Optional;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.data.redis.core.ReactiveStringRedisTemplate;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.server.reactive.ServerHttpRequest;
@@ -35,19 +37,15 @@ import reactor.core.publisher.Mono;
 
 public class AuthTokenService {
 
+    private static final Logger logger = LoggerFactory.getLogger(AuthTokenService.class);
+    
     private final WebClient webClient;
     private final ReactiveStringRedisTemplate redisTemplate;
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
     
     private final String cachePrefix;
-    private final long BUFFER_TIME_SECONDS;  // Durata rimanente minima del token per essere cachato 
-    private final long CACHE_TTL_THRESHOLD;  // Soglia da levare al tempo rimanente del token per avere un ttl
-
-    /*
-    *     LOGICA DI EXPIRE CONTROLL: 
-     *    Token per essere cachato => Durata token > BUFFER_TIME_SECONDS 
-     *    TTL CACHE TOKEN = DURATA - CACHE_TTL_THRESHOLD
-     */
+    private final long BUFFER_TIME_SECONDS;
+    private final long CACHE_TTL_THRESHOLD;
 
     public AuthTokenService(WebClient.Builder webClientBuilder,
                             String authServiceUrl,
@@ -55,7 +53,6 @@ public class AuthTokenService {
                             long BUFFER_TIME_SECONDS,
                             long CACHE_TTL_THRESHOLD,
                             ReactiveStringRedisTemplate redisTemplate) {
-
         this.webClient = webClientBuilder.baseUrl(authServiceUrl).build();
         this.redisTemplate = redisTemplate;
         this.cachePrefix = cachePrefix;
@@ -64,37 +61,58 @@ public class AuthTokenService {
     }
 
     public String extractToken(ServerHttpRequest request) {
-        return Optional.ofNullable(request.getHeaders().getFirst(HttpHeaders.AUTHORIZATION))
+        String token = Optional.ofNullable(request.getHeaders().getFirst(HttpHeaders.AUTHORIZATION))
                 .map(header -> header.replace("Bearer ", ""))
                 .orElse(null);
+        logger.debug("Estratto token: {}", token);
+        return token;
     }
 
     public Mono<Boolean> validateToken(String token) {
         if (token == null || token.isEmpty()) {
+            logger.warn("Token assente o vuoto");
             return Mono.just(false);
         }
         String userId = extractUserId(token);
         String cacheKey = cachePrefix + userId;
+        logger.info("Verifica token per userId: {}", userId);
 
         return getTokenFromCache(cacheKey)
                 .hasElement()
-                .flatMap(isCached -> isCached ? Mono.just(true) : validateAndSave(token));
+                .flatMap(isCached -> {
+                    if (isCached) {
+                        logger.info("Token trovato in cache per userId: {}", userId);
+                    } else {
+                        logger.info("Token non in cache, validazione remota per userId: {}", userId);
+                    }
+                    return isCached ? Mono.just(true) : validateAndSave(token);
+                })
+                .switchIfEmpty(Mono.error(new IllegalStateException("validateToken ha restituito un Mono vuoto")));
     }
 
     private Mono<Boolean> validateCall(String token) {
+        logger.debug("Chiamata a servizio di validazione per token");
         return webClient.post()
                 .uri(uriBuilder -> uriBuilder.queryParam("jwt", token).build())
                 .retrieve()
                 .bodyToMono(Boolean.class)
-                .onErrorReturn(false);
+                .doOnError(e -> logger.error("Errore durante la validazione del token", e))
+                .defaultIfEmpty(false)       // Assicura che un Mono vuoto venga convertito in `false`
+                .onErrorReturn(false);  // Gestisce eventuali errori restituendo `false`
     }
 
     private Mono<Boolean> validateAndSave(String token) {
         return validateCall(token).flatMap(valid -> {
-            if (!valid) return Mono.just(false);
+            if (!valid) {
+                logger.warn("Token non valido");
+                return Mono.just(false);
+            }
             return extractExpiration(token)
                     .map(expTime -> isCachable(expTime).flatMap(isCachable -> {
-                        if (!isCachable) return Mono.just(true);
+                        if (!isCachable) {
+                            logger.info("Token valido ma non cacheabile");
+                            return Mono.just(true);
+                        }
                         String userId = extractUserId(token);
                         return cacheToken(token, userId, expTime).thenReturn(true);
                     }))
@@ -104,19 +122,21 @@ public class AuthTokenService {
     
     private Mono<Boolean> isCachable(Long expirationTime) {
         long currentTime = Instant.now().getEpochSecond();
-        System.out.println("current time: " + currentTime);
-        return Mono.just(expirationTime - currentTime > BUFFER_TIME_SECONDS);
+        boolean cachable = expirationTime - currentTime > BUFFER_TIME_SECONDS;
+        logger.debug("Il token è cacheabile: {}", cachable);
+        return Mono.just(cachable);
     }
 
     private Mono<Boolean> cacheToken(String token, String userId, Long expirationTime) {
         long ttl = Math.max(expirationTime - Instant.now().getEpochSecond() - CACHE_TTL_THRESHOLD, 1);
-        System.out.println("ttl key: " + ttl);
+        logger.info("Caching token per userId: {}, TTL: {} secondi", userId, ttl);
         return redisTemplate.opsForValue()
                 .set(cachePrefix + userId, token, Duration.ofSeconds(ttl))
                 .thenReturn(true);
     }
 
     private Mono<String> getTokenFromCache(String cacheKey) {
+        logger.debug("Recupero token dalla cache per chiave: {}", cacheKey);
         return redisTemplate.opsForValue().get(cacheKey);
     }
 
@@ -137,8 +157,11 @@ public class AuthTokenService {
             String decodedJson = new String(decodedBytes, StandardCharsets.UTF_8);
             Map<String, Object> payloadMap = OBJECT_MAPPER.readValue(decodedJson, Map.class);
             
-            return Optional.ofNullable(payloadMap.get(claimName)).map(Object::toString);
+            String claimValue = Optional.ofNullable(payloadMap.get(claimName)).map(Object::toString).orElse(null);
+            logger.debug("Claim '{}' estratto dal token: {}", claimName, claimValue);
+            return Optional.ofNullable(claimValue);
         } catch (Exception e) {
+            logger.error("Errore nell'estrazione del claim '{}' dal token", claimName, e);
             return Optional.empty();
         }
     }

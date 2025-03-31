@@ -13,7 +13,7 @@ spring:
   cloud:
     gateway:
       httpclient:
-        connect-timeout: 5000000  # Timeout di connessione (5 secondi)
+        connect-timeout: 500000  # Timeout di connessione (5 secondi)
         response-timeout: 150s   # Timeout di risposta (30 secondi)
       routes:
         - id: fallback-route
@@ -26,17 +26,25 @@ spring:
             - Path=/test/**
           filters:
             - RewritePath=/test/(?<segment>.*), /${segment}
-            - name: RedisCacheFilter
-              args:
-                ttl: 60
-                cachePrefix: "test_cache:"
-                methods: "GET, POST, PUT"
             - name: AuthenticationFilter
               args:
                 cachePrefix: "Auth_Cache:"
                 authServiceUrl: "http://t23-controller:8082/validateToken"
                 BUFFER_TIME_SECONDS: 600  
                 CACHE_TTL_THRESHOLD: 60
+            - name: RedisCacheFilter
+              args:
+                ttl: 60
+                cachePrefix: "test_cache:"
+                methods: "GET, POST, PUT"
+        - id: aggregated-route
+          uri: no://op  //il gateway non inoltra direttamente la richiesta a un backend
+          predicates:
+            - Path=/aggregated
+          filters:
+            - name: Aggregation
+              args:
+                services: "http://httpbin.org/get, http://httpbin.org/bytes/10"
         - id: gamerepo-route
           uri: http://t4-controller:8084
           predicates:
@@ -76,7 +84,7 @@ spring:
 # Configurazioni aggiuntive per il logging e altre personalizzazioni
 logging:
   level:
-    org.springframework.cloud.gateway: INFO
+    org.springframework.cloud.gateway: TRACE
     reactor.netty.http.server: INFO
 
 management:

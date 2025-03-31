@@ -18,9 +18,9 @@ package com.gateway.apiGateway.filter.redisCacheFilter;
 
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.util.HexFormat;
 import java.util.Map;
 import java.util.stream.Collectors;
-import java.util.HexFormat;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -30,9 +30,9 @@ import org.springframework.cloud.gateway.filter.NettyWriteResponseFilter;
 import org.springframework.core.Ordered;
 import org.springframework.core.io.buffer.DataBufferUtils;
 import org.springframework.data.redis.core.ReactiveStringRedisTemplate;
+import org.springframework.http.server.reactive.ServerHttpRequest;
 import org.springframework.stereotype.Component;
 import org.springframework.web.server.ServerWebExchange;
-import org.springframework.http.server.reactive.ServerHttpRequest;
 
 import com.gateway.apiGateway.Factory.RedisCacheFilterGatewayFilterFactory.Config;
 
@@ -44,16 +44,9 @@ import reactor.util.function.Tuples;
 public class RedisCacheFilter implements GatewayFilter, Ordered {
 
     private static final Logger logger = LoggerFactory.getLogger(RedisCacheFilter.class);
-    /*
-     * Cache params 
-     */
     private final ReactiveStringRedisTemplate redisTemplate;
     private final Config config;
 
-    /*
-     * Ordine d'esecuzione del filtro, 
-     * deve essere prima di netty sennò non può eseguire
-     */
     @Override
     public int getOrder() {
         return NettyWriteResponseFilter.WRITE_RESPONSE_FILTER_ORDER - 1;
@@ -67,8 +60,11 @@ public class RedisCacheFilter implements GatewayFilter, Ordered {
     @Override
     public Mono<Void> filter(ServerWebExchange exchange, GatewayFilterChain chain) {
         String method = exchange.getRequest().getMethod().toString();
-        // Se il metodo non è nella configurazione, non usiamo cache        
+        String path = exchange.getRequest().getURI().getPath();
+        logger.info("[RedisCacheFilter] Processing request: method={}, path={}", method, path);
+
         if (!config.isCacheable(method)) {
+            logger.info("[RedisCacheFilter] Method {} is not cacheable. Proceeding without cache.", method);
             return chain.filter(exchange);
         }
 
@@ -76,78 +72,80 @@ public class RedisCacheFilter implements GatewayFilter, Ordered {
             ServerWebExchange newExchange = tuple.getT1();
             String cacheKey = tuple.getT2();
 
+            logger.info("[RedisCacheFilter] Generated cache key: {}", cacheKey);
+
             CachingServerHttpResponseDecorator cachedResponse = new CachingServerHttpResponseDecorator(
-                newExchange.getResponse(), cacheKey, redisTemplate, config.getTtl()
+                    newExchange.getResponse(), cacheKey, redisTemplate, config.getTtl()
             );
 
-            return redisTemplate.opsForValue().get(cacheKey)
-            .flatMap(cachedValue -> {
-                logger.info("Cache hit for key: {}", cacheKey);
-                return cachedResponse.writeWithCachedResponse(cachedValue);
-            })
-            .switchIfEmpty(Mono.defer(() -> {
-                logger.info("Cache miss for key: {}", cacheKey);
-                return chain.filter(newExchange.mutate().response(cachedResponse).build());
-            }));
+            return redisTemplate.hasKey(cacheKey)
+                    .flatMap(exists -> {
+                        if (exists) {
+                            logger.info("[RedisCacheFilter] Cache hit for key: {}", cacheKey);
+                            return redisTemplate.opsForValue().get(cacheKey).flatMap(cachedValue ->{
+                                return cachedResponse.writeWithCachedResponse(cachedValue);
+                            });
+                        }else{
+                            logger.info("[RedisCacheFilter] Cache miss for key: {}", cacheKey);
+                            return chain.filter(newExchange.mutate().response(cachedResponse).build());
+                        }
+                    })
+                    .doOnError(error -> logger.error("[RedisCacheFilter] Error accessing cache: ", error));
         });
-    }
-
-    // Metodo per calcolare l'hash a partire da un array di byte
-
-
-    private String hashSHA256Bytes(byte[] data) {
-        try {
-            MessageDigest digest = MessageDigest.getInstance("SHA-256");
-            byte[] hash = digest.digest(data);
-            return HexFormat.of().formatHex(hash);  // Usa HexFormat per la conversione
-        } catch (NoSuchAlgorithmException e) {
-            throw new RuntimeException("Errore nel calcolo dell'hash SHA-256", e);
-        }
     }
 
     private Mono<Tuple2<ServerWebExchange, String>> generateCacheKey(ServerWebExchange exchange) {
         String cachePrefix = config.getCachePrefix();
         String path = exchange.getRequest().getURI().getPath();
-    
-        // Parametri ordinati per consistenza nella cache
+
         String params = exchange.getRequest().getQueryParams()
-            .entrySet()
-            .stream()
-            .sorted(Map.Entry.comparingByKey())
-            .map(entry -> entry.getKey() + "=" + String.join(",", entry.getValue()))
-            .collect(Collectors.joining("&"));
-    
+                .entrySet()
+                .stream()
+                .sorted(Map.Entry.comparingByKey())
+                .map(entry -> entry.getKey() + "=" + String.join(",", entry.getValue()))
+                .collect(Collectors.joining("&"));
+
         String method = exchange.getRequest().getMethod().toString();
+        logger.info("[RedisCacheFilter] Generating cache key for method={}, path={}, params={}", method, path, params);
+
         if ("GET".equalsIgnoreCase(method)) {
             return Mono.just(Tuples.of(exchange, cachePrefix + path + ":" + params));
         }
-    
-        // Per POST e PUT, gestiamo il body con il decoratore
+
         return cacheAndHashRequestBody(exchange).map(tuple -> {
-                ServerWebExchange newExchange = tuple.getT1();
-                String bodyHash = tuple.getT2();
-                String cacheKey = cachePrefix + path + ":" + params + ":" + bodyHash;
-                return Tuples.of(newExchange, cacheKey);
+            ServerWebExchange newExchange = tuple.getT1();
+            String bodyHash = tuple.getT2();
+            String cacheKey = cachePrefix + path + ":" + params + ":" + bodyHash;
+            logger.info("[RedisCacheFilter] Computed cache key with body hash: {}", cacheKey);
+            return Tuples.of(newExchange, cacheKey);
         });
     }
-    
 
     private Mono<Tuple2<ServerWebExchange, String>> cacheAndHashRequestBody(ServerWebExchange exchange) {
-        return DataBufferUtils
-                .join(exchange.getRequest().getBody())
+        return DataBufferUtils.join(exchange.getRequest().getBody())
                 .flatMap(dataBuffer -> {
                     byte[] bodyBytes = new byte[dataBuffer.readableByteCount()];
                     dataBuffer.read(bodyBytes);
-                    DataBufferUtils.release(dataBuffer); // Libera il buffer per evitare memory leak
+                    DataBufferUtils.release(dataBuffer);
 
                     String bodyHash = hashSHA256Bytes(bodyBytes);
+                    logger.info("[RedisCacheFilter] Computed body hash: {}", bodyHash);
 
-                    // Creiamo il decoratore della richiesta con il body letto
                     ServerHttpRequest newRequest = new CachedBodyRequestDecorator(exchange.getRequest(), bodyBytes);
                     ServerWebExchange newExchange = exchange.mutate().request(newRequest).build();
-
                     return Mono.just(Tuples.of(newExchange, bodyHash));
-                });
+                })
+                .doOnError(error -> logger.error("[RedisCacheFilter] Error hashing request body: ", error));
     }
 
+    private String hashSHA256Bytes(byte[] data) {
+        try {
+            MessageDigest digest = MessageDigest.getInstance("SHA-256");
+            byte[] hash = digest.digest(data);
+            return HexFormat.of().formatHex(hash);
+        } catch (NoSuchAlgorithmException e) {
+            logger.error("[RedisCacheFilter] Error computing SHA-256 hash", e);
+            throw new RuntimeException("Error computing SHA-256 hash", e);
+        }
+    }
 }

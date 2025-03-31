@@ -7,3 +7,10 @@ args:
   redis-rate-limiter.burstCapacity: 1     # burst massima di 1 richiesta
   redis-rate-limiter.requestedTokens: 1  # 10 token per una richiesta -> 1 richiesta ogni 10 sec
   key-resolver: "#{@ipKeyResolver}"  # Resolver basato sull'header X-Forwarded-For
+
+
+            - name: RedisCacheFilter
+              args:
+                ttl: 60
+                cachePrefix: "test_cache:"
+                methods: "GET, POST, PUT"

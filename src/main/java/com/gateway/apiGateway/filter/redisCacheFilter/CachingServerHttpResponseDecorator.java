@@ -29,7 +29,6 @@ import org.springframework.core.io.buffer.DataBuffer;
 import org.springframework.core.io.buffer.DataBufferUtils;
 import org.springframework.data.redis.core.ReactiveStringRedisTemplate;
 import org.springframework.http.HttpStatusCode;
-import org.springframework.http.MediaType;
 import org.springframework.http.server.reactive.ServerHttpResponse;
 import org.springframework.http.server.reactive.ServerHttpResponseDecorator;
 import org.springframework.lang.NonNull;
@@ -74,36 +73,25 @@ public class CachingServerHttpResponseDecorator extends ServerHttpResponseDecora
 
     private Mono<Void> processAndCacheResponse(Publisher<? extends DataBuffer> body) {
         return aggregateBody(body)
-            .doOnNext(content -> {  // Esegue in background senza bloccare
-                CreateCachedResponse(content)
-                    .flatMap(cachedResponse -> 
-                        cacheService.save(cacheKey, cachedResponse, ttl)
-                            .onErrorResume(e -> {
-                                logger.error("Errore nella serializzazione della risposta per la cache", e);
-                                return Mono.empty();
-                            })
-                    )
-                    .subscribe();  //Avvia esecuzione 
-            })
-            .flatMap(content -> {
-                // Crea un nuovo DataBuffer per la risposta
-                DataBuffer newBuffer = getDelegate().bufferFactory().wrap(content);
-                return super.writeWith(Flux.just(newBuffer));
-            });
+                .doOnNext(content -> {  // Esegue in background senza bloccare
+                    CreateCachedResponse(content)
+                    .flatMap(cachedResponse -> cacheService.save(cacheKey, cachedResponse, ttl))
+                    .doOnError(e -> logger.error("Errore nella serializzazione della risposta per la cache", e))
+                    .subscribe();
+                })
+                .flatMap(content -> {
+                    // Crea un nuovo DataBuffer per la risposta
+                    DataBuffer newBuffer = getDelegate().bufferFactory().wrap(content);
+                    return super.writeWith(Flux.just(newBuffer));
+                });
     }
 
     private Mono<CachedResponse> CreateCachedResponse(byte[] content) {
         String responseBody = new String(content, StandardCharsets.UTF_8);
-        String contentType = getContentTypeOrDefault();
         Map<String, List<String>> headersMap = extractHeaders();
         return Mono.just(
-                new CachedResponse(contentType, responseBody, headersMap)
+                new CachedResponse(responseBody, headersMap)
         );
-    }
-
-    private String getContentTypeOrDefault() {
-        MediaType contentType = getDelegate().getHeaders().getContentType();
-        return contentType != null ? contentType.toString() : "application/json";
     }
 
     public Mono<Void> writeWithCachedResponse(String cachedValue) {
@@ -116,39 +104,43 @@ public class CachingServerHttpResponseDecorator extends ServerHttpResponseDecora
             ObjectMapper objectMapper = new ObjectMapper();
             return objectMapper.readValue(cachedValue, CachedResponse.class);
         })
-                .flatMap(cachedResponse -> {
-                    // Imposta gli header dalla cache
-                    cachedResponse.getHeaders().forEach((key, valueList) -> {
-                        getDelegate().getHeaders().remove(key);
-                        getDelegate().getHeaders().put(key, valueList);
-                    });
-                    // Imposta il content type
-                    getDelegate().getHeaders().setContentType(MediaType.parseMediaType(cachedResponse.getContentType()));
+        .flatMap(cachedResponse -> {
+            // Imposta gli header dalla cache
+            cachedResponse.getHeaders().forEach((key, valueList) -> {
+                getDelegate().getHeaders().put(key, new ArrayList<>(valueList));
+            });
+            // imposta stato HTTP
+            getDelegate().setStatusCode(HttpStatusCode.valueOf(200));
 
-                    // Crea DataBuffer per il body dalla cache
-                    DataBuffer buffer = getDelegate().bufferFactory()
-                            .wrap(cachedResponse.getBody().getBytes(StandardCharsets.UTF_8));
-                    return super.writeWith(Mono.just(buffer));
-                })
-                .onErrorResume(e -> {
-                    logger.error("Errore nel parsing della risposta cache", e);
-                    return Mono.empty();
-                });
+            // Crea DataBuffer per il body dalla cache
+            DataBuffer buffer = getDelegate().bufferFactory()
+                    .wrap(cachedResponse.getBody().getBytes(StandardCharsets.UTF_8));
+            return super.writeWith(Mono.just(buffer));
+        })
+        .onErrorResume(e -> {
+            logger.error("Errore nel parsing della risposta cache", e);
+            return Mono.empty();
+        });
     }
 
     private Mono<byte[]> aggregateBody(Publisher<? extends DataBuffer> body) {
         return DataBufferUtils.join(Flux.from(body))
                 .flatMap(buffer -> {
-                    byte[] content = new byte[buffer.readableByteCount()];
-                    buffer.read(content);
-                    DataBufferUtils.release(buffer);
-                    return Mono.just(content);
+                    try {
+                        byte[] content = new byte[buffer.readableByteCount()];
+                        buffer.read(content);
+                        return Mono.just(content);
+                    } finally {
+                        DataBufferUtils.release(buffer);  // Rilascia il buffer per evitare memory leak
+                    }
                 });
     }
 
     private Map<String, List<String>> extractHeaders() {
         Map<String, List<String>> headersMap = new HashMap<>();
-        getDelegate().getHeaders().forEach((key, valueList) -> headersMap.put(key, new ArrayList<>(valueList)));
+        getDelegate().getHeaders().forEach(
+                (key, valueList) -> headersMap.put(key, new ArrayList<>(valueList))
+        );
         return headersMap;
     }
 }

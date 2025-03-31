@@ -21,6 +21,8 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.web.reactive.function.client.WebClient;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+
 @Configuration
 public class AppConfig {
 
@@ -28,5 +30,10 @@ public class AppConfig {
     public WebClient.Builder webClientBuilder() {
         System.out.println("WebClient.Builder bean is created");
         return WebClient.builder();
+    }
+
+    @Bean
+    public ObjectMapper objectMapper() {
+        return new ObjectMapper();
     }
 }
