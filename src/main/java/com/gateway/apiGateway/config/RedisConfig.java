@@ -53,4 +53,5 @@ public class RedisConfig {
 
         return new ReactiveRedisTemplate<>(connectionFactory, context);
     }
+    
 }

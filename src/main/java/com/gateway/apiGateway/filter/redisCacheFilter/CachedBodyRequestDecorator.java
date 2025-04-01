@@ -17,11 +17,16 @@
 
 package com.gateway.apiGateway.filter.redisCacheFilter;
 
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
+import java.util.HexFormat;
+
 import org.springframework.core.io.buffer.DataBuffer;
 import org.springframework.core.io.buffer.DefaultDataBufferFactory;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.server.reactive.ServerHttpRequest;
 import org.springframework.http.server.reactive.ServerHttpRequestDecorator;
+
 import reactor.core.publisher.Flux;
 
 /**
@@ -30,10 +35,12 @@ import reactor.core.publisher.Flux;
 public class CachedBodyRequestDecorator extends ServerHttpRequestDecorator {
 
     private final byte[] cachedBodyBytes;
+    private final String bodyHash;
 
     public CachedBodyRequestDecorator(ServerHttpRequest delegate, byte[] bodyBytes) {
         super(delegate);
         this.cachedBodyBytes = bodyBytes;
+        this.bodyHash = hashSHA256Bytes(bodyBytes);
     }
 
     @SuppressWarnings("null")
@@ -49,5 +56,18 @@ public class CachedBodyRequestDecorator extends ServerHttpRequestDecorator {
         headers.putAll(super.getHeaders());
         headers.setContentLength(cachedBodyBytes.length);
         return headers;
+    }
+    
+    private String hashSHA256Bytes(byte[] data) {
+        try {
+            MessageDigest digest = MessageDigest.getInstance("SHA-256");
+            return HexFormat.of().formatHex(digest.digest(data));
+        } catch (NoSuchAlgorithmException e) {
+            throw new RuntimeException("Error computing SHA-256 hash", e);
+        }
+    }
+
+    public String getBodyHash() {
+        return bodyHash;
     }
 }

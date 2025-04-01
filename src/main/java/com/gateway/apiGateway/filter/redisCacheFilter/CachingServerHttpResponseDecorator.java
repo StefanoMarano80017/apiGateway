@@ -28,6 +28,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.core.io.buffer.DataBuffer;
 import org.springframework.core.io.buffer.DataBufferUtils;
 import org.springframework.data.redis.core.ReactiveStringRedisTemplate;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.HttpStatusCode;
 import org.springframework.http.server.reactive.ServerHttpResponse;
 import org.springframework.http.server.reactive.ServerHttpResponseDecorator;
@@ -89,8 +90,9 @@ public class CachingServerHttpResponseDecorator extends ServerHttpResponseDecora
     private Mono<CachedResponse> CreateCachedResponse(byte[] content) {
         String responseBody = new String(content, StandardCharsets.UTF_8);
         Map<String, List<String>> headersMap = extractHeaders();
+        String status = extractStatusCode().toString();
         return Mono.just(
-                new CachedResponse(responseBody, headersMap)
+                new CachedResponse(responseBody, headersMap, status)
         );
     }
 
@@ -109,8 +111,10 @@ public class CachingServerHttpResponseDecorator extends ServerHttpResponseDecora
             cachedResponse.getHeaders().forEach((key, valueList) -> {
                 getDelegate().getHeaders().put(key, new ArrayList<>(valueList));
             });
+            
             // imposta stato HTTP
-            getDelegate().setStatusCode(HttpStatusCode.valueOf(200));
+            HttpStatusCode statusCode = HttpStatus.valueOf(cachedResponse.getStatusCode());
+            getDelegate().setStatusCode(statusCode);
 
             // Crea DataBuffer per il body dalla cache
             DataBuffer buffer = getDelegate().bufferFactory()
@@ -142,5 +146,15 @@ public class CachingServerHttpResponseDecorator extends ServerHttpResponseDecora
                 (key, valueList) -> headersMap.put(key, new ArrayList<>(valueList))
         );
         return headersMap;
+    }
+
+    /**
+     * Estrae lo status code dalla response delegata.
+     *
+     * @return lo status code corrente, oppure null se non è stato ancora impostato
+     */
+    public HttpStatusCode extractStatusCode() {
+        // Accediamo al delegate per ottenere lo status code corrente
+        return getDelegate().getStatusCode();
     }
 }

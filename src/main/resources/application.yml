@@ -13,8 +13,13 @@ spring:
   cloud:
     gateway:
       httpclient:
-        connect-timeout: 500000  # Timeout di connessione (5 secondi)
+        connect-timeout: 5000  # Timeout di connessione (5 secondi)
         response-timeout: 150s   # Timeout di risposta (30 secondi)
+        wiretap: true  # Abilita log dettagliati delle richieste
+        pool:
+          type: fixed
+          max-connections: 500  # Numero massimo di connessioni simultanee
+          acquire-timeout: 5000ms  # Tempo massimo di attesa per una connessione libera
       routes:
         - id: fallback-route
           uri: http://localhost:8080/fallback # Dove si gestisce il fallback
@@ -26,12 +31,6 @@ spring:
             - Path=/test/**
           filters:
             - RewritePath=/test/(?<segment>.*), /${segment}
-            - name: AuthenticationFilter
-              args:
-                cachePrefix: "Auth_Cache:"
-                authServiceUrl: "http://t23-controller:8082/validateToken"
-                BUFFER_TIME_SECONDS: 600  
-                CACHE_TTL_THRESHOLD: 60
             - name: RedisCacheFilter
               args:
                 ttl: 60

@@ -23,12 +23,14 @@ import java.util.Map;
 public class CachedResponse {
     private String body;
     private Map<String, List<String>> headers;
+    private String statusCode;
 
     public CachedResponse() {}
 
-    public CachedResponse(String body, Map<String, List<String>> headers) {
+    public CachedResponse(String body, Map<String, List<String>> headers, String statusCode) {
         this.body = body;
         this.headers = headers;
+        this.statusCode = statusCode;
     }
 
     // Getters & setters
@@ -44,4 +46,13 @@ public class CachedResponse {
     public void setHeaders(Map<String, List<String>> headers) {
         this.headers = headers;
     }
+
+    public String getStatusCode() {
+        return statusCode;
+    }
+
+    public void setStatusCode(String statusCode) {
+        this.statusCode = statusCode;
+    }
+
 }
